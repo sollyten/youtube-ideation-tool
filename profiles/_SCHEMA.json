@@ -1,0 +1,82 @@
+{
+  "_comment": "This is the canonical profile schema. Every file in profiles/<slug>.json MUST follow this shape. Fields marked USER are asked during /build-profile setup and are editable in the UI. Fields marked AUTO are derived by the AI from YouTube data. Fields marked EDITABLE must be changeable from the UI at any time without re-running setup.",
+
+  "_multiuser_comment": "HOSTED MULTI-USER: every profile is owned by a user. slug is unique PER USER, not globally. Two directors can each have an 'atriumexplores' without collision.",
+  "id": "string  (DB primary key)",
+  "owner_user_id": "string  (the director who owns this profile; all access is filtered by this)",
+  "visibility": "string  (private | company; default private. 'company' lets other directors view it read-only.)",
+
+  "slug": "string  (AUTO, lowercase-hyphenated channel name, unique per owner)",
+  "channel_name": "string  (AUTO from YouTube API)",
+  "channel_url": "string  (USER, provided at setup)",
+  "channel_id": "string  (AUTO, resolved UC... id)",
+
+  "focus": {
+    "_comment": "USER + EDITABLE. Req #1. The near-term direction the channel is steering toward, which may differ from its back-catalogue. Ideation must weight this heavily. Editable in UI because focus shifts often.",
+    "statement": "string  (e.g. 'Shifting from WW2 vehicles toward Nazi-era escape/manhunt stories with a true-crime tension.')",
+    "last_updated": "ISO date"
+  },
+
+  "user_style_description": "string  (USER. Req #2. The creator's own words describing the channel's style/voice. Treated as ground truth, weighted above AI inference.)",
+
+  "resources": [
+    {
+      "_comment": "USER + EDITABLE. Req #3. Pasted text or uploaded files: planned video ideas, brand notes, banned topics, reference scripts. Fed into ideation as steering context.",
+      "id": "string",
+      "label": "string  (e.g. 'Q3 planned videos')",
+      "type": "pasted_text | uploaded_file",
+      "content": "string  (raw text, or extracted text from an uploaded file)",
+      "added_at": "ISO date"
+    }
+  ],
+
+  "competitors": [
+    {
+      "_comment": "USER + EDITABLE. Req #4. Channels the audience also watches. Used in BOTH ideation and deep competitor analysis.",
+      "name": "string",
+      "url": "string",
+      "channel_id": "string  (AUTO-resolved on save)"
+    }
+  ],
+
+  "audience": {
+    "_comment": "USER. Req #5. Pulled by the creator from YouTube Studio > Audience.",
+    "age_ranges": ["string  (top 3, e.g. '25-34', '18-24', '35-44')"],
+    "top_countries": ["string  (e.g. 'United States', 'United Kingdom', 'Germany')"]
+  },
+
+  "niche": "string  (AUTO, specific not generic)",
+  "format_style": "string  (AUTO, e.g. 'obstacle-based narrative, present tense, ~20min')",
+  "tone": "string  (AUTO)",
+  "house_style_notes": "string  (AUTO, distinctive rules worth remembering)",
+
+  "recent_topics": ["string  (AUTO, condensed list of last ~50 video topics, used for de-duplication)"],
+
+  "connections": {
+    "_comment": "Each profile owns its OWN, SEPARATE YouTube authorization. HOSTED: the OAuth token is stored ENCRYPTED AT REST in the channel_tokens table keyed by (owner_user_id, profile_id), decrypted only server-side at call time. NOT a plaintext file. A director can only trigger analytics for channels they personally connected. Performance Tracker stays LOCKED for a profile until youtube_analytics.connected is true.",
+    "youtube_analytics": {
+      "connected": "boolean",
+      "channel_id": "string (the authorized owned channel)",
+      "token_ref": "string (reference to the encrypted channel_tokens record, never the token itself)",
+      "connected_at": "ISO date"
+    }
+  },
+
+  "performance_log_ref": "string  (path to performance/<slug>.jsonl; one published-video record per line: title, views, averageViewPercentage, averageViewDuration, ctr, performance_rank, source_idea_alignment_score if applicable, retention_summary)",
+
+  "retention_findings_ref": "string  (path to performance/<slug>_retention.jsonl; next_video_rules produced by the Retention Lab)",
+
+  "learnings": ["string  (durable, evidence-backed learnings produced by the performance->learnings loop. Injected as {{performance_learnings}} into ideation, recombination, and scripting. This is what makes the system compound.)"],
+
+  "stats": {
+    "_comment": "AUTO snapshot from last profile build. Refreshed on demand.",
+    "subscriber_count": "int",
+    "view_count": "int",
+    "video_count": "int",
+    "median_views": "int  (baseline used for outlier detection)",
+    "snapshot_date": "ISO date"
+  },
+
+  "created_at": "ISO date",
+  "updated_at": "ISO date"
+}

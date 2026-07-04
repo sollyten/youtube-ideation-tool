@@ -1,0 +1,34 @@
+{
+  "_comment": "Per-channel VISUAL style descriptor for the isolated Thumbnail Lab. This is the ONLY channel data allowed in this module. It contains no strategy, no audience psychographics, no scripting info. Derived from the reference thumbnails the user uploads here, and reused on every generation.",
+
+  "slug": "string (matches the channel, but this store is independent of profiles/)",
+  "derived_from_reference_count": "int (how many reference thumbnails informed this)",
+
+  "visual_style": {
+    "composition": "string (e.g. 'single dominant subject, off-centre, strong depth')",
+    "palette": ["string (dominant colours, e.g. 'desaturated teal', 'warm amber key light')"],
+    "lighting": "string (e.g. 'high-contrast cinematic, dark background, rim light')",
+    "typography": {
+      "used": "boolean",
+      "style": "string (e.g. 'heavy condensed sans, all caps, minimal words')",
+      "placement": "string"
+    },
+    "subject_treatment": "string (e.g. 'realistic 3D render, dramatic expression, weathered detail')",
+    "mood": "string (e.g. 'tense, ominous, historical gravity')",
+    "logo_or_brand_mark": {
+      "present": "boolean",
+      "description": "string",
+      "placement": "string"
+    },
+    "recurring_motifs": ["string (visual elements that repeat across the channel)"]
+  },
+
+  "negative_style": ["string (things to avoid, e.g. 'no bright cartoon colours', 'no clutter')"],
+
+  "reference_images": [
+    {"filename": "string (in references/<slug>/)", "note": "string (what this one exemplifies)"}
+  ],
+
+  "created_at": "ISO date",
+  "updated_at": "ISO date"
+}

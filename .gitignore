@@ -1,0 +1,10 @@
+.env
+connections/
+data/
+storage/
+thumbnail-lab/references/
+thumbnail-lab/styles/
+*.token.json
+node_modules/
+dist/
+*.log

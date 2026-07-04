@@ -1,0 +1,14 @@
+{
+  "name": "youtube-ideation-tool",
+  "private": true,
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server & npm run dev --workspace web & wait",
+    "build": "npm run build --workspace server && npm run build --workspace web",
+    "test": "npm test --workspace server",
+    "migrate": "npm run migrate --workspace server"
+  }
+}
