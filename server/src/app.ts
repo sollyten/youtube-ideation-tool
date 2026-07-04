@@ -12,19 +12,29 @@ import { HttpError } from "./errors.js";
 import { authRouter } from "./routes/auth.js";
 import { profilesRouter } from "./routes/profiles.js";
 import { ideationRouter } from "./routes/ideation.js";
+import { competitorRouter } from "./routes/competitor.js";
+import { performanceRouter } from "./routes/performance.js";
+import { retentionRouter } from "./routes/retention.js";
 import { reportsRouter } from "./routes/reports.js";
 import { adminRouter } from "./routes/admin.js";
+import { thumbnailRouter } from "./thumbnail/routes.js";
 import { config } from "./config/env.js";
 
 export function createApp(): express.Express {
   const app = express();
-  app.use(express.json({ limit: "4mb" }));
+  // Generous limit: the Retention Lab image path posts a base64 screenshot.
+  app.use(express.json({ limit: "12mb" }));
 
   app.use("/api/auth", authRouter);
   app.use("/api/profiles", requireAuth, profilesRouter);
   app.use("/api", requireAuth, ideationRouter);
+  app.use("/api", requireAuth, competitorRouter);
+  app.use("/api", requireAuth, performanceRouter);
+  app.use("/api", requireAuth, retentionRouter);
   app.use("/api/reports", requireAuth, reportsRouter);
   app.use("/api/admin", requireAuth, adminRouter);
+  // Isolated module: identity only, no profile/memory/prompt access.
+  app.use("/api/thumbnail-lab", requireAuth, thumbnailRouter);
 
   // Serve the built front end in production; the Vite dev server proxies /api
   // during development.

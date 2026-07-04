@@ -1,64 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, type ScoredIdea } from "../api";
+import { IdeaCards } from "../components/IdeaCards";
 
-const SUBSCORE_MAX: Record<string, number> = {
-  focus: 35,
-  format: 20,
-  audience: 20,
-  originality: 15,
-  outlier: 10,
-};
-
-function IdeaCard({ idea, rank }: { idea: ScoredIdea; rank: number }) {
-  const [open, setOpen] = useState(rank === 1);
-  return (
-    <div className="card clickable" onClick={() => setOpen((o) => !o)}>
-      <div className="row spread">
-        <div className="row" style={{ gap: 14 }}>
-          <span className="score-ring">{Math.round(idea.alignment_score)}</span>
-          <div>
-            <strong>{idea.title}</strong>
-            <p className="muted" style={{ margin: "2px 0 0" }}>{idea.premise}</p>
-          </div>
-        </div>
-        <span className="muted">#{rank}</span>
-      </div>
-      {open && (
-        <div style={{ marginTop: 16 }}>
-          <div className="stack" style={{ gap: 6, marginBottom: 14 }}>
-            {Object.entries(idea.subscores ?? {}).map(([key, value]) => (
-              <div className="subscore" key={key}>
-                <span>{key}</span>
-                <span className="bar">
-                  <i style={{ width: `${Math.min(100, (value / (SUBSCORE_MAX[key] ?? 100)) * 100)}%` }} />
-                </span>
-                <span>{value}</span>
-              </div>
-            ))}
-          </div>
-          <p style={{ margin: "0 0 8px" }}>
-            <span className="muted">Why it fits:</span> {idea.why_it_fits}
-          </p>
-          <p style={{ margin: "0 0 8px" }}>
-            <span className="muted">Why now:</span> {idea.why_now}
-          </p>
-          <p style={{ margin: 0 }}>
-            <span className="muted">Format angle:</span> {idea.recommended_format_angle}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
+/** Read-only view of any saved report (ideas | competitor | retention | performance). */
 export function ReportPage() {
   const { id } = useParams<{ id: string }>();
   const [report, setReport] = useState<{
     type: string;
     createdAt: string;
     profileId: string;
-    payload: { ideas?: ScoredIdea[]; drop_note?: string; meta?: Record<string, unknown> };
+    payload: any;
   } | null>(null);
   const [error, setError] = useState("");
 
@@ -68,17 +20,9 @@ export function ReportPage() {
   }, [id]);
 
   if (error) return <p className="error">{error}</p>;
-  if (!report) {
-    return (
-      <p className="muted">
-        <span className="spinner" /> Loading…
-      </p>
-    );
-  }
+  if (!report) return <p className="muted"><span className="spinner" /> Loading…</p>;
 
-  const ideas = report.payload.ideas ?? [];
-  const meta = report.payload.meta ?? {};
-  const fetchErrors = (meta.fetch_errors as string[]) ?? [];
+  const p = report.payload;
 
   return (
     <div>
@@ -87,27 +31,86 @@ export function ReportPage() {
           ← Back to channel
         </Link>
       </p>
-      <h1>Idea run</h1>
-      <p className="muted">
-        {new Date(report.createdAt).toLocaleString()} · {String(meta.raw_candidate_count ?? "?")}{" "}
-        researched → {ideas.length} selected
-        {typeof meta.duplicates_dropped_pre_scoring === "number" &&
-          Number(meta.duplicates_dropped_pre_scoring) > 0 && (
-            <> · {String(meta.duplicates_dropped_pre_scoring)} repeats dropped</>
-          )}
-      </p>
-      {fetchErrors.map((e) => (
-        <p className="error" key={e}>{e}</p>
-      ))}
-      <div className="stack" style={{ marginTop: 20 }}>
-        {ideas.map((idea, i) => (
-          <IdeaCard idea={idea} rank={i + 1} key={idea.title} />
-        ))}
-      </div>
-      {report.payload.drop_note && (
+      <h1 style={{ textTransform: "capitalize" }}>{report.type} report</h1>
+      <p className="muted">{new Date(report.createdAt).toLocaleString()}</p>
+
+      {report.type === "ideas" && (
         <>
-          <h2>Scorer's notes</h2>
-          <p className="muted" style={{ whiteSpace: "pre-wrap" }}>{report.payload.drop_note}</p>
+          {(p.meta?.fetch_errors ?? []).map((e: string) => (
+            <p className="error" key={e}>{e}</p>
+          ))}
+          <p className="muted">
+            {String(p.meta?.raw_candidate_count ?? "?")} researched → {(p.ideas ?? []).length} selected
+            {p.meta?.source === "recombination" && " · from competitor recombination"}
+          </p>
+          <IdeaCards ideas={(p.ideas ?? []) as ScoredIdea[]} />
+          {p.drop_note && (
+            <>
+              <h2>Scorer's notes</h2>
+              <p className="muted" style={{ whiteSpace: "pre-wrap" }}>{p.drop_note}</p>
+            </>
+          )}
+        </>
+      )}
+
+      {report.type === "competitor" && (
+        <>
+          <h2>Topic bank</h2>
+          <div className="chips" style={{ marginBottom: 14 }}>
+            {(p.analysis?.topic_bank ?? []).map((t: string) => <span className="chip" key={t}>{t}</span>)}
+          </div>
+          <h2>Format bank</h2>
+          <div className="chips" style={{ marginBottom: 14 }}>
+            {(p.analysis?.format_bank ?? []).map((f: string) => <span className="chip" key={f}>{f}</span>)}
+          </div>
+          <h2>Outlier breakdowns</h2>
+          <div className="stack">
+            {(p.analysis?.outlier_breakdowns ?? []).map((b: any, i: number) => (
+              <div className="card" key={i}>
+                <strong>{b.title}</strong> <span className="muted">· {b.channel} · {b.multiplier}x</span>
+                <p style={{ margin: "6px 0" }}><span className="muted">{b.topic}</span> → <span className="muted">{b.format}</span></p>
+                <p style={{ margin: 0 }}>{b.why_it_overperformed}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {report.type === "retention" && p.analysis && (
+        <>
+          <div className="card" style={{ margin: "14px 0" }}>
+            <div><span className="muted">Journey:</span> {p.analysis.overall?.journey_pattern}</div>
+            <div><span className="muted">Top fix:</span> {p.analysis.overall?.top_level_fix}</div>
+          </div>
+          <h2>Next-video rules</h2>
+          <div className="card stack">
+            {(p.analysis.next_video_rules ?? []).map((r: string, i: number) => <div key={i}>• {r}</div>)}
+          </div>
+        </>
+      )}
+
+      {report.type === "performance" && (
+        <>
+          <h2>Videos</h2>
+          <table className="table" style={{ marginBottom: 16 }}>
+            <thead>
+              <tr><th>Video</th><th>Views</th><th>Avg %</th><th>Rank</th></tr>
+            </thead>
+            <tbody>
+              {(p.rows ?? []).map((r: any, i: number) => (
+                <tr key={i}>
+                  <td>{r.video}</td>
+                  <td>{r.views?.toLocaleString() ?? "—"}</td>
+                  <td>{r.averageViewPercentage ?? "—"}</td>
+                  <td><span className="pill accent">{r.performance_rank ?? "—"}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <h2>Learnings</h2>
+          <div className="card stack">
+            {(p.learnings ?? []).map((l: string, i: number) => <div key={i}>• {l}</div>)}
+          </div>
         </>
       )}
     </div>

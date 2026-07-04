@@ -80,7 +80,10 @@ def fetch_channel_data(url_or_handle):
     if video_ids:
         vids = _get("videos", {"part": "snippet,statistics", "id": ",".join(video_ids)})
         for v in vids.get("items", []):
+            vid = v["id"]
             recent_videos.append({
+                "video_id": vid,
+                "url": f"https://www.youtube.com/watch?v={vid}",
                 "title": v["snippet"]["title"],
                 "published_at": v["snippet"]["publishedAt"],
                 "view_count": int(v["statistics"].get("viewCount", 0)),

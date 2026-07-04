@@ -1,35 +1,45 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, ApiError, type Profile, type ReportSummary } from "../api";
+import { useParams, useSearchParams } from "react-router-dom";
+import { api, ApiError, type Profile } from "../api";
+import { IdeasTab } from "../tabs/IdeasTab";
+import { CompetitorTab } from "../tabs/CompetitorTab";
+import { PerformanceTab } from "../tabs/PerformanceTab";
+import { RetentionTab } from "../tabs/RetentionTab";
+import { ThumbnailTab } from "../tabs/ThumbnailTab";
 
-/** Channel page: profile facts, inline focus editing, idea generation, run history. */
+type TabId = "ideas" | "competitor" | "performance" | "retention" | "thumbnails";
+const TABS: Array<{ id: TabId; label: string }> = [
+  { id: "ideas", label: "Ideas" },
+  { id: "competitor", label: "Competitor" },
+  { id: "performance", label: "Performance" },
+  { id: "retention", label: "Retention Lab" },
+  { id: "thumbnails", label: "Thumbnail Lab" },
+];
+
+/** Channel page: profile facts + inline focus edit + a tab per feature. */
 export function ProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [reports, setReports] = useState<ReportSummary[]>([]);
   const [error, setError] = useState("");
-  const [running, setRunning] = useState(false);
-
+  const [tab, setTab] = useState<TabId>("ideas");
+  const [connected, setConnected] = useState(false);
   const [editingFocus, setEditingFocus] = useState(false);
   const [focusDraft, setFocusDraft] = useState("");
 
-  const load = () => {
+  useEffect(() => {
     if (!id) return;
     api.getProfile(id).then((r) => setProfile(r.profile)).catch((e) => setError(e.message));
-    api.listReports({ profileId: id, type: "ideas" }).then((r) => setReports(r.reports)).catch(() => {});
-  };
+    api.connection(id).then((c) => setConnected(c.connected)).catch(() => {});
+  }, [id]);
 
-  useEffect(load, [id]);
+  // Land on the Performance tab after an OAuth round-trip.
+  useEffect(() => {
+    if (searchParams.get("youtube") === "connected") setTab("performance");
+  }, [searchParams]);
 
   if (error) return <p className="error">{error}</p>;
-  if (!profile) {
-    return (
-      <p className="muted">
-        <span className="spinner" /> Loading…
-      </p>
-    );
-  }
+  if (!profile) return <p className="muted"><span className="spinner" /> Loading…</p>;
 
   const d = profile.data;
 
@@ -43,118 +53,60 @@ export function ProfilePage() {
     }
   };
 
-  const generate = async () => {
-    setRunning(true);
-    setError("");
-    try {
-      const result = await api.ideate(profile.id);
-      navigate(`/reports/${result.reportId}`);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Ideation failed");
-    } finally {
-      setRunning(false);
-    }
-  };
-
   return (
     <div>
-      <div className="row spread" style={{ marginBottom: 4 }}>
-        <h1>{d.channel_name}</h1>
-        {!profile.readOnly && (
-          <button className="btn btn-primary" onClick={generate} disabled={running}>
-            {running ? (
-              <>
-                <span className="spinner" /> Generating…
-              </>
-            ) : (
-              "Generate ideas"
-            )}
-          </button>
-        )}
-      </div>
+      <h1>{d.channel_name}</h1>
       <p className="muted" style={{ marginTop: 0 }}>
         {d.stats?.subscriber_count?.toLocaleString()} subscribers · median{" "}
         {d.stats?.median_views?.toLocaleString()} views · {d.niche}
-        {profile.readOnly && (
-          <>
-            {" "}
-            · <span className="pill">shared read-only</span>
-          </>
-        )}
+        {profile.readOnly && <> · <span className="pill">shared read-only</span></>}
       </p>
-      {running && (
-        <p className="muted">
-          Fetching outliers, researching with Perplexity, and scoring with the reasoning model —
-          this can take a few minutes. Leave this page open.
-        </p>
-      )}
 
-      <h2>Near-term focus</h2>
-      <div className="card">
+      <div className="card" style={{ marginBottom: 4 }}>
+        <div className="row spread" style={{ marginBottom: 6 }}>
+          <strong style={{ fontSize: 13 }}>Near-term focus</strong>
+          {!profile.readOnly && !editingFocus && (
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                setFocusDraft(d.focus?.statement ?? "");
+                setEditingFocus(true);
+              }}
+            >
+              Edit
+            </button>
+          )}
+        </div>
         {editingFocus ? (
           <div className="stack">
             <textarea value={focusDraft} onChange={(e) => setFocusDraft(e.target.value)} autoFocus />
             <div className="row">
-              <button className="btn btn-primary" onClick={saveFocus} disabled={!focusDraft.trim()}>
-                Save focus
-              </button>
-              <button className="btn btn-ghost" onClick={() => setEditingFocus(false)}>
-                Cancel
-              </button>
+              <button className="btn btn-primary" onClick={saveFocus} disabled={!focusDraft.trim()}>Save</button>
+              <button className="btn btn-ghost" onClick={() => setEditingFocus(false)}>Cancel</button>
             </div>
           </div>
         ) : (
-          <div className="row spread">
-            <p style={{ margin: 0 }}>{d.focus?.statement}</p>
-            {!profile.readOnly && (
-              <button
-                className="btn btn-ghost"
-                onClick={() => {
-                  setFocusDraft(d.focus?.statement ?? "");
-                  setEditingFocus(true);
-                }}
-              >
-                Edit
-              </button>
-            )}
-          </div>
+          <p style={{ margin: 0 }}>{d.focus?.statement}</p>
         )}
       </div>
 
-      <h2>Profile</h2>
-      <div className="card stack">
-        <div><span className="muted">Style (creator's words):</span> {d.user_style_description}</div>
-        <div><span className="muted">Format:</span> {d.format_style}</div>
-        <div><span className="muted">Tone:</span> {d.tone}</div>
-        <div><span className="muted">House style:</span> {d.house_style_notes}</div>
-        <div>
-          <span className="muted">Audience:</span> {d.audience?.age_ranges?.join(", ")} ·{" "}
-          {d.audience?.top_countries?.join(", ")}
-        </div>
-        <div>
-          <span className="muted">Competitors:</span>{" "}
-          {d.competitors?.length ? d.competitors.map((c) => c.name).join(", ") : "none"}
-        </div>
-        {d.resources?.length > 0 && (
-          <div>
-            <span className="muted">Resources:</span> {d.resources.map((r) => r.label).join(", ")}
-          </div>
-        )}
+      <div className="tabs-bar">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            className={`tab ${tab === t.id ? "active" : ""} ${t.id === "performance" && !connected ? "locked" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <h2>Idea runs</h2>
-      {reports.length === 0 ? (
-        <p className="muted">No runs yet. Generate ideas to get started.</p>
-      ) : (
-        <div className="stack">
-          {reports.map((r) => (
-            <Link to={`/reports/${r.id}`} key={r.id} className="card clickable row spread">
-              <span>Idea run</span>
-              <span className="muted">{new Date(r.createdAt).toLocaleString()}</span>
-            </Link>
-          ))}
-        </div>
-      )}
+      {tab === "ideas" && <IdeasTab profile={profile} />}
+      {tab === "competitor" && <CompetitorTab profile={profile} />}
+      {tab === "performance" && <PerformanceTab profile={profile} />}
+      {tab === "retention" && <RetentionTab profile={profile} />}
+      {tab === "thumbnails" && <ThumbnailTab slug={d.slug} readOnly={profile.readOnly} />}
     </div>
   );
 }

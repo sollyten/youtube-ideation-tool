@@ -72,12 +72,19 @@ def detect_outliers(videos, multiplier=3.0, baseline_method="median", min_age_da
     for v in mature:
         mult = round(v["view_count"] / baseline, 2)
         if mult >= multiplier:
-            outliers.append({
+            entry = {
                 "title": v["title"],
                 "view_count": v["view_count"],
                 "multiplier": mult,
                 "published_at": v["published_at"],
-            })
+            }
+            # Carry through video id/url when the fetch step provided them, so
+            # downstream competitor analysis can cite real URLs (never faked).
+            if v.get("video_id"):
+                entry["video_id"] = v["video_id"]
+            if v.get("url"):
+                entry["url"] = v["url"]
+            outliers.append(entry)
 
     outliers.sort(key=lambda x: x["multiplier"], reverse=True)
 

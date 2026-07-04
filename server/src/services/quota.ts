@@ -6,12 +6,18 @@ import type { ScopedData } from "../data/scoped.js";
 import { config } from "../config/env.js";
 import { QuotaExceededError } from "../errors.js";
 
-export type MeteredAction = "ideation" | "competitor_analysis" | "retention" | "profile_build";
+export type MeteredAction =
+  | "ideation"
+  | "competitor_analysis"
+  | "retention"
+  | "performance"
+  | "profile_build";
 
 const LIMITS: Record<MeteredAction, () => number> = {
   ideation: () => config.quotas.ideation,
   competitor_analysis: () => config.quotas.competitorAnalysis,
   retention: () => config.quotas.retention,
+  performance: () => config.quotas.performance,
   profile_build: () => config.quotas.profileBuild,
 };
 

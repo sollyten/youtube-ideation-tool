@@ -6,6 +6,8 @@ import { Channels } from "./pages/Channels";
 import { AddChannel } from "./pages/AddChannel";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ReportPage } from "./pages/ReportPage";
+import { History } from "./pages/History";
+import { Admin } from "./pages/Admin";
 
 interface AuthContextValue {
   user: User;
@@ -39,10 +41,19 @@ function Shell({ user, onSignOut, children }: { user: User; onSignOut: () => voi
   return (
     <div className="shell">
       <header className="topbar">
-        <Link to="/" className="brand">
-          <span className="brand-dot" />
-          Creator Studio
-        </Link>
+        <div className="row" style={{ gap: 20 }}>
+          <Link to="/" className="brand">
+            <span className="brand-dot" />
+            Creator Studio
+          </Link>
+          <nav className="row" style={{ gap: 14, fontSize: 13.5 }}>
+            <Link to="/" className="btn-ghost" style={{ padding: 0 }}>Channels</Link>
+            <Link to="/history" className="btn-ghost" style={{ padding: 0 }}>History</Link>
+            {user.role === "admin" && (
+              <Link to="/admin" className="btn-ghost" style={{ padding: 0 }}>Admin</Link>
+            )}
+          </nav>
+        </div>
         <div className="topbar-actions">
           <span>{user.name}</span>
           {user.role === "admin" && <span className="pill">admin</span>}
@@ -94,6 +105,8 @@ export function App() {
           <Route path="/channels/new" element={<AddChannel />} />
           <Route path="/channels/:id" element={<ProfilePage />} />
           <Route path="/reports/:id" element={<ReportPage />} />
+          <Route path="/history" element={<History />} />
+          {user.role === "admin" && <Route path="/admin" element={<Admin />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Shell>

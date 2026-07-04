@@ -13,9 +13,17 @@ import { getCompanyKey } from "../credentials/companyCredentials.js";
 import { config } from "../config/env.js";
 import { UpstreamError } from "../errors.js";
 
+export interface ReasoningImage {
+  /** Base64-encoded image data (no data: URI prefix). */
+  data: string;
+  mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+}
+
 export interface ReasoningRequest {
   system?: string;
   user: string;
+  /** Optional images for vision steps (Retention Lab image path, prompt 05). */
+  images?: ReasoningImage[];
   /** Cap on output tokens; reasoning steps produce long JSON, default is generous. */
   maxTokens?: number;
 }
@@ -40,13 +48,27 @@ export class AnthropicReasoningAdapter implements ReasoningAdapter {
 
   async complete(request: ReasoningRequest): Promise<string> {
     try {
+      // A vision request interleaves image blocks before the text prompt;
+      // a plain request sends the text as a simple string.
+      const content: Anthropic.ContentBlockParam[] | string =
+        request.images && request.images.length > 0
+          ? [
+              ...request.images.map(
+                (img): Anthropic.ImageBlockParam => ({
+                  type: "image",
+                  source: { type: "base64", media_type: img.mediaType, data: img.data },
+                }),
+              ),
+              { type: "text", text: request.user },
+            ]
+          : request.user;
       // Streaming keeps long scoring runs clear of HTTP timeouts.
       const stream = this.getClient().messages.stream({
         model: REASONING_MODEL,
         max_tokens: request.maxTokens ?? 32000,
         thinking: { type: "adaptive" },
         ...(request.system ? { system: request.system } : {}),
-        messages: [{ role: "user", content: request.user }],
+        messages: [{ role: "user", content }],
       });
       const message = await stream.finalMessage();
       const text = message.content

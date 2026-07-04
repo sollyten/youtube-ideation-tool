@@ -108,6 +108,68 @@ export const api = {
       { method: "POST", body: JSON.stringify({}) },
     ),
 
+  competitorAnalysis: (profileId: string) =>
+    call<{ reportId: string; analysis: Record<string, unknown>; meta: Record<string, unknown> }>(
+      `/api/profiles/${profileId}/competitor-analysis`,
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+  recombine: (profileId: string, competitorReportId: string) =>
+    call<{ reportId: string; ideas: ScoredIdea[]; meta: Record<string, unknown> }>(
+      `/api/profiles/${profileId}/recombine`,
+      { method: "POST", body: JSON.stringify({ competitor_report_id: competitorReportId }) },
+    ),
+
+  connection: (profileId: string) =>
+    call<{ connected: boolean; oauthConfigured: boolean; channelId: string | null; connectedAt: string | null }>(
+      `/api/profiles/${profileId}/connection`,
+    ),
+  connectYoutube: (profileId: string) =>
+    call<{ authUrl: string }>(`/api/profiles/${profileId}/youtube/connect`, { method: "POST" }),
+  disconnectYoutube: (profileId: string) =>
+    call<{ connected: boolean }>(`/api/profiles/${profileId}/youtube/disconnect`, { method: "POST" }),
+  performanceSync: (profileId: string) =>
+    call<{ reportId: string; rows: unknown[]; learnings: string[]; calibration: Record<string, unknown> }>(
+      `/api/profiles/${profileId}/performance-sync`,
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+
+  retentionLab: (
+    profileId: string,
+    input: { video_title: string; video_length?: string; video_id?: string; image?: { data: string; media_type: string } },
+  ) =>
+    call<{ reportId: string; analysis: Record<string, unknown>; summary: string }>(
+      `/api/profiles/${profileId}/retention-lab`,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+
+  thumbnail: {
+    get: (slug: string) =>
+      call<{ style: { descriptor: Record<string, unknown>; negativeStyle: string[]; updatedAt: string | null }; references: Array<{ id: string; filename: string; note: string }>; generations: Array<{ id: string; request: string; promptUsed: string; result: { images: string[] }; createdAt: string }> }>(
+        `/api/thumbnail-lab/${encodeURIComponent(slug)}/style`,
+      ),
+    saveStyle: (slug: string, descriptor: Record<string, unknown>, negative_style: string[]) =>
+      call(`/api/thumbnail-lab/${encodeURIComponent(slug)}/style`, {
+        method: "PUT",
+        body: JSON.stringify({ descriptor, negative_style }),
+      }),
+    addReference: (slug: string, ref: { filename: string; note: string; media_type: string; data: string }) =>
+      call(`/api/thumbnail-lab/${encodeURIComponent(slug)}/references`, {
+        method: "POST",
+        body: JSON.stringify(ref),
+      }),
+    generate: (slug: string, request: string) =>
+      call<{ generationId: string; images: string[]; promptUsed: string; styleLocked: string }>(
+        `/api/thumbnail-lab/${encodeURIComponent(slug)}/generate`,
+        { method: "POST", body: JSON.stringify({ request }) },
+      ),
+  },
+
+  adminCredentials: () => call<{ credentials: Record<string, boolean> }>("/api/admin/credentials"),
+  adminUsage: () =>
+    call<{ usage: Array<{ email: string; name: string; action: string; runs: number; last_run: string }> }>(
+      "/api/admin/usage",
+    ),
+
   listReports: (filter: { profileId?: string; type?: string } = {}) => {
     const params = new URLSearchParams();
     if (filter.profileId) params.set("profile_id", filter.profileId);

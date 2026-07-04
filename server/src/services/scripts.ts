@@ -8,7 +8,7 @@
  * secrets is forwarded.
  */
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { config } from "../config/env.js";
@@ -23,7 +23,22 @@ export interface ChannelData {
   subscriber_count: number;
   view_count: number;
   video_count: number;
-  recent_videos: Array<{ title: string; published_at: string; view_count: number }>;
+  recent_videos: Array<{
+    video_id?: string;
+    url?: string;
+    title: string;
+    published_at: string;
+    view_count: number;
+  }>;
+}
+
+export interface Outlier {
+  title: string;
+  view_count: number;
+  multiplier: number;
+  published_at: string;
+  video_id?: string;
+  url?: string;
 }
 
 export interface OutlierResult {
@@ -31,7 +46,7 @@ export interface OutlierResult {
   baseline_method: string;
   multiplier_threshold: number;
   mature_video_count: number;
-  outliers: Array<{ title: string; view_count: number; multiplier: number; published_at: string }>;
+  outliers: Outlier[];
   warning?: string;
 }
 
@@ -129,15 +144,80 @@ export async function perplexityResearch(prompt: string): Promise<string> {
   });
 }
 
+export interface PerformanceRow {
+  video: string;
+  views?: number;
+  averageViewPercentage?: number;
+  averageViewDuration?: number;
+  estimatedMinutesWatched?: number;
+  subscribersGained?: number;
+  performance_rank?: string;
+}
+
+export interface RetentionPoint {
+  elapsedVideoTimeRatio: number;
+  audienceWatchRatio: number;
+  relativeRetentionPerformance?: number;
+}
+
+/**
+ * OWNER-only analytics via per-profile OAuth (fetch_analytics.py). This is
+ * SECURITY-CRITICAL and differs from every other script runner:
+ *
+ *   - It uses the caller's decrypted OAuth token, NOT a company key.
+ *   - The token is written to a fresh per-run temp dir, passed as the script's
+ *     user-scoped --token-dir, and the dir is wiped in a finally — no shared
+ *     path, no persisted plaintext.
+ *   - If the script refreshed the access token, we hand it back so the caller
+ *     can re-encrypt it.
+ */
+export async function fetchAnalytics(
+  slug: string,
+  tokenJson: string,
+  options: { recent?: number; video?: string; retention?: boolean },
+): Promise<{ result: unknown; refreshedToken?: string }> {
+  const dir = await mkdtemp(path.join(tmpdir(), "yt-oauth-"));
+  const tokenPath = path.join(dir, `${slug}.token.json`);
+  try {
+    await writeFile(tokenPath, tokenJson, { mode: 0o600 });
+    const args = [slug, "--token-dir", dir];
+    if (options.retention && options.video) {
+      args.push("--video", options.video, "--retention");
+    } else {
+      args.push("--recent", String(options.recent ?? 10));
+    }
+    const out = await runPython("fetch_analytics.py", args);
+    const result = parseJson<unknown>("fetch_analytics.py", out);
+    // The script rewrites the token file after a refresh; capture any change.
+    let refreshedToken: string | undefined;
+    try {
+      const after = await readFile(tokenPath, "utf8");
+      if (after && after !== tokenJson) refreshedToken = after;
+    } catch {
+      /* token file may be gone; ignore */
+    }
+    return { result, refreshedToken };
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 /** Test hook: swap script implementations without touching the network. */
 export interface ScriptRunner {
   fetchChannelData: typeof fetchChannelData;
   detectOutliers: typeof detectOutliers;
   dedupeCandidates: typeof dedupeCandidates;
   perplexityResearch: typeof perplexityResearch;
+  fetchAnalytics: typeof fetchAnalytics;
 }
 
-let runner: ScriptRunner = { fetchChannelData, detectOutliers, dedupeCandidates, perplexityResearch };
+let runner: ScriptRunner = {
+  fetchChannelData,
+  detectOutliers,
+  dedupeCandidates,
+  perplexityResearch,
+  fetchAnalytics,
+};
 
 export function getScriptRunner(): ScriptRunner {
   return runner;

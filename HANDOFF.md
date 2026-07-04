@@ -1,10 +1,12 @@
-# Phase 1 handoff — how this codebase is structured and how to extend it
+# Handoff — how this codebase is structured and how to extend it
 
-Phase 1 (the multi-user spine + the Idea Generation slice) is complete. This
-document is the map for whoever builds Phase 2 (competitor analysis,
-recombination, Performance Tracker + per-user OAuth, Retention Lab) and Phase 3
-(Thumbnail Lab, History tab, admin usage UI, polish). Follow the existing
-patterns — every hard problem already has one worked example.
+Phases 1–3 are implemented. This document is the map of the patterns; follow
+them for any further work — every hard problem already has one worked example.
+
+**Status:** Phase 1 (multi-user spine + Idea Generation), Phase 2 (Deep
+Competitor Analysis + recombination, Performance Tracker + per-user encrypted
+OAuth, Retention Lab), and Phase 3 (isolated Thumbnail Lab, History tab, admin
+usage view) are all built, wired into the UI, and covered by 35 tests.
 
 ## Running it
 
@@ -77,13 +79,44 @@ import `ScopedData` profile methods, memory, or prompts outside
 - Auth (register/login/logout/me), roles, first-user-admin bootstrap.
 - Profiles: preview (fetch + AI auto-fill) → confirm → save; inline focus edit;
   per-user slugs; company visibility (admin-gated).
-- Ideation end to end: outliers → Perplexity (prompt 01) → dedupe.py → Opus
-  scoring (prompt 02) → idea memory → saved report; per-user daily quotas;
-  usage events; admin endpoints `/api/admin/credentials` + `/api/admin/usage`.
-- Web UI: login, channels, add-channel wizard, profile page, idea-run report,
-  light/dark theme.
-- 25 tests covering isolation (403/404), auth, quotas, crypto, the template
-  engine, and the full pipeline with stubbed externals.
+- **Ideation** end to end: outliers → Perplexity (prompt 01) → dedupe.py → Opus
+  scoring (prompt 02) → idea memory → saved report. The scoring tail lives in
+  `services/ideaScoring.ts` and is shared with recombination.
+- **Deep Competitor Analysis** (`services/competitorAnalysis.ts`): competitor
+  outliers with real video URLs → prompt 03 (Perplexity deep research) →
+  breakdowns + topic_bank + format_bank → "competitor" report. The "Generate
+  ideas from these outliers" CTA runs prompt 04 (Opus) → the shared scoring tail.
+- **Performance Tracker** (`services/performance.ts`, `oauth/youtube.ts`):
+  per-director Google OAuth (server-side code exchange, signed state, token
+  stored encrypted via `saveChannelToken`), locked until connected;
+  fetch_analytics.py run with a per-run temp token dir (wiped after); Studio "N
+  of 10" ranks; pre-production alignment_score matched back by title; prompt 06
+  distils learnings written back into the profile (the compounding loop).
+- **Retention Lab** (`services/retentionLab.ts`): API path (fetch_analytics
+  --retention) or image path (vision through the reasoning adapter), prompt 05
+  with `knowledge/retention_analysis.md` as authority; next_video_rules saved
+  and read by the performance loop.
+- **Thumbnail Lab** (`src/thumbnail/*`): ISOLATED — own tables, Higgsfield-only
+  client, deterministic prompt composition (no reasoning model / profile /
+  memory). A static test (`test/thumbnailIsolation.test.ts`) fails the build if
+  the module ever imports the strategic side.
+- **History** tab (all reports, filter by channel + type) and **admin** usage +
+  credential-status views. Per-user daily quotas on every expensive action.
+- Web UI: login, channels, add-channel wizard, profile page with a tab per
+  feature, report views for every type, light/dark theme.
+- 35 tests: isolation (403/404), auth, quotas, crypto, template engine, the
+  full ideation/competitor/recombination/performance/retention pipelines, and
+  the Thumbnail Lab isolation contract — all with stubbed externals.
+
+## The reasoning + Higgsfield adapters (test seams)
+
+- `getReasoningAdapter()` / `setReasoningAdapter()` — company Anthropic key path
+  (`claude-opus-4-8`, adaptive thinking, streaming, optional vision images).
+  Tests inject `StubReasoningAdapter` and `enqueue()` responses.
+- `getScriptRunner()` / `setScriptRunner()` — swap any Python script call.
+- `getHiggsfieldClient()` / `setHiggsfieldClient()` — Thumbnail Lab only.
+- Tests run in a single fork (see `vitest.config.ts`) because they share one
+  Postgres test DB and TRUNCATE between cases.
 
 ## Environment
 
