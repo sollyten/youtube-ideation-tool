@@ -3,11 +3,13 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     // The integration suites share one Postgres test database and TRUNCATE
-    // between cases. Run everything in a single fork, serially, so one file's
-    // truncate can never wipe another file's fixtures mid-run.
+    // between cases, so files must not run concurrently. We disable file
+    // parallelism (serial execution) but keep per-file isolation (a fresh fork
+    // per file) — sharing a single fork pollutes module-global state in some
+    // bundled deps (e.g. pdf-parse's pdf.js).
     pool: "forks",
-    poolOptions: { forks: { singleFork: true } },
     fileParallelism: false,
+    isolate: true,
     sequence: { concurrent: false },
     hookTimeout: 30000,
     testTimeout: 30000,

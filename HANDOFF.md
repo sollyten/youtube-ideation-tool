@@ -78,7 +78,10 @@ import `ScopedData` profile methods, memory, or prompts outside
 
 - Auth (register/login/logout/me), roles, first-user-admin bootstrap.
 - Profiles: preview (fetch + AI auto-fill) → confirm → save; inline focus edit;
-  per-user slugs; company visibility (admin-gated).
+  per-user slugs; company visibility (admin-gated). The **Details tab** edits
+  resources (paste text or upload pdf/docx/txt — text extracted server-side via
+  `services/extractText.ts`) and competitors (add-by-URL resolves the
+  channel_id) and audience, all removable in-UI (SPEC §2 Req #3/#4).
 - **Ideation** end to end: outliers → Perplexity (prompt 01) → dedupe.py → Opus
   scoring (prompt 02) → idea memory → saved report. The scoring tail lives in
   `services/ideaScoring.ts` and is shared with recombination.
@@ -104,9 +107,10 @@ import `ScopedData` profile methods, memory, or prompts outside
   credential-status views. Per-user daily quotas on every expensive action.
 - Web UI: login, channels, add-channel wizard, profile page with a tab per
   feature, report views for every type, light/dark theme.
-- 35 tests: isolation (403/404), auth, quotas, crypto, template engine, the
-  full ideation/competitor/recombination/performance/retention pipelines, and
-  the Thumbnail Lab isolation contract — all with stubbed externals.
+- 40 tests: isolation (403/404), auth, quotas, crypto, template engine, the
+  full ideation/competitor/recombination/performance/retention pipelines, the
+  Thumbnail Lab isolation contract, and text extraction — all with stubbed
+  externals.
 
 ## The reasoning + Higgsfield adapters (test seams)
 

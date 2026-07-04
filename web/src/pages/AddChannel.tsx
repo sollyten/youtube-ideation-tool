@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError, type ProfileData } from "../api";
+import { fileToBase64 } from "../util/file";
 
 /**
  * Add Channel wizard — follows the SPEC §2 collection order:
@@ -84,6 +85,23 @@ export function AddChannel() {
   };
 
   const addResource = () => setResources((r) => [...r, { label: "", type: "pasted_text", content: "" }]);
+
+  const uploadResourceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    try {
+      const data = await fileToBase64(file);
+      const { text } = await api.extractText({ filename: file.name, media_type: file.type, data });
+      setResources((r) => [...r, { label: file.name, type: "uploaded_file", content: text }]);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not extract text from that file");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div style={{ maxWidth: 620 }}>
@@ -190,11 +208,21 @@ export function AddChannel() {
               </div>
             ))}
           </div>
-          <div className="row" style={{ marginTop: 14 }}>
+          <div className="row" style={{ marginTop: 14, flexWrap: "wrap" }}>
             <button className="btn btn-ghost" onClick={back}>Back</button>
-            <button className="btn" onClick={addResource}>Add resource</button>
+            <button className="btn" onClick={addResource}>Paste text</button>
+            <label className="btn" style={{ cursor: "pointer" }}>
+              {busy ? <span className="spinner" /> : "Upload file"}
+              <input
+                type="file"
+                accept=".txt,.md,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={uploadResourceFile}
+                style={{ display: "none" }}
+              />
+            </label>
             <button className="btn btn-primary" onClick={next}>Continue</button>
           </div>
+          <p className="hint" style={{ marginTop: 8 }}>PDF, DOCX, or plain text — the text is extracted and stored.</p>
         </div>
       )}
 

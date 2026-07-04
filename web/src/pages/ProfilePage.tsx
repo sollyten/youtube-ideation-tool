@@ -6,14 +6,16 @@ import { CompetitorTab } from "../tabs/CompetitorTab";
 import { PerformanceTab } from "../tabs/PerformanceTab";
 import { RetentionTab } from "../tabs/RetentionTab";
 import { ThumbnailTab } from "../tabs/ThumbnailTab";
+import { DetailsTab } from "../tabs/DetailsTab";
 
-type TabId = "ideas" | "competitor" | "performance" | "retention" | "thumbnails";
+type TabId = "ideas" | "competitor" | "performance" | "retention" | "thumbnails" | "details";
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "ideas", label: "Ideas" },
   { id: "competitor", label: "Competitor" },
   { id: "performance", label: "Performance" },
   { id: "retention", label: "Retention Lab" },
   { id: "thumbnails", label: "Thumbnail Lab" },
+  { id: "details", label: "Details" },
 ];
 
 /** Channel page: profile facts + inline focus edit + a tab per feature. */
@@ -107,6 +109,7 @@ export function ProfilePage() {
       {tab === "performance" && <PerformanceTab profile={profile} />}
       {tab === "retention" && <RetentionTab profile={profile} />}
       {tab === "thumbnails" && <ThumbnailTab slug={d.slug} readOnly={profile.readOnly} />}
+      {tab === "details" && <DetailsTab profile={profile} onSaved={setProfile} />}
     </div>
   );
 }

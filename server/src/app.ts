@@ -17,6 +17,7 @@ import { performanceRouter } from "./routes/performance.js";
 import { retentionRouter } from "./routes/retention.js";
 import { reportsRouter } from "./routes/reports.js";
 import { adminRouter } from "./routes/admin.js";
+import { toolsRouter } from "./routes/tools.js";
 import { thumbnailRouter } from "./thumbnail/routes.js";
 import { config } from "./config/env.js";
 
@@ -31,6 +32,7 @@ export function createApp(): express.Express {
   app.use("/api", requireAuth, competitorRouter);
   app.use("/api", requireAuth, performanceRouter);
   app.use("/api", requireAuth, retentionRouter);
+  app.use("/api", requireAuth, toolsRouter);
   app.use("/api/reports", requireAuth, reportsRouter);
   app.use("/api/admin", requireAuth, adminRouter);
   // Isolated module: identity only, no profile/memory/prompt access.

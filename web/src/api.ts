@@ -164,6 +164,14 @@ export const api = {
       ),
   },
 
+  extractText: (input: { filename: string; media_type: string; data: string }) =>
+    call<{ text: string }>("/api/extract-text", { method: "POST", body: JSON.stringify(input) }),
+  resolveChannel: (url: string) =>
+    call<{ name: string; url: string; channel_id: string }>("/api/resolve-channel", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    }),
+
   adminCredentials: () => call<{ credentials: Record<string, boolean> }>("/api/admin/credentials"),
   adminUsage: () =>
     call<{ usage: Array<{ email: string; name: string; action: string; runs: number; last_run: string }> }>(
