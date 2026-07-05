@@ -119,6 +119,12 @@ import `ScopedData` profile methods, memory, or prompts outside
   Tests inject `StubReasoningAdapter` and `enqueue()` responses.
 - `getScriptRunner()` / `setScriptRunner()` — swap any Python script call.
 - `getHiggsfieldClient()` / `setHiggsfieldClient()` — Thumbnail Lab only.
+  `HIGGSFIELD_ADAPTER` picks the transport: `http` (REST + `HIGGSFIELD_API_KEY`),
+  `mcp` (a Higgsfield MCP server — `HIGGSFIELD_MCP_URL` + configurable tool/arg
+  names, see `.env.example`), or `stub`. The MCP client (`higgsfieldMcp.ts`)
+  uses the official `@modelcontextprotocol/sdk` and is proven end-to-end against
+  an in-memory mock MCP server in `test/higgsfieldMcp.test.ts`. Both transports
+  stay inside `src/thumbnail/` — the isolation test guards that.
 - Tests run in a single fork (see `vitest.config.ts`) because they share one
   Postgres test DB and TRUNCATE between cases.
 

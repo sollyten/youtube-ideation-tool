@@ -8,6 +8,7 @@
  */
 import { getCompanyKey } from "../credentials/companyCredentials.js";
 import { UpstreamError } from "../errors.js";
+import { McpHiggsfieldClient } from "./higgsfieldMcp.js";
 
 export interface HiggsfieldReference {
   mediaType: string;
@@ -101,7 +102,14 @@ let client: HiggsfieldClient | undefined;
 
 export function getHiggsfieldClient(): HiggsfieldClient {
   if (!client) {
-    client = process.env.HIGGSFIELD_ADAPTER === "stub" ? new StubHiggsfieldClient() : new HttpHiggsfieldClient();
+    const adapter = process.env.HIGGSFIELD_ADAPTER;
+    if (adapter === "stub") {
+      client = new StubHiggsfieldClient();
+    } else if (adapter === "mcp") {
+      client = new McpHiggsfieldClient();
+    } else {
+      client = new HttpHiggsfieldClient();
+    }
   }
   return client;
 }

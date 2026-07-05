@@ -69,6 +69,38 @@ export const config = {
       return Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET);
     },
   },
+  /**
+   * Thumbnail Lab → Higgsfield transport. HIGGSFIELD_ADAPTER selects "http"
+   * (default), "mcp", or "stub". In MCP mode the module talks to a Higgsfield
+   * MCP server; tool/arg names are configurable so they can be matched to the
+   * real server's schema without code changes.
+   */
+  higgsfieldMcp: {
+    get url(): string {
+      return optional("HIGGSFIELD_MCP_URL", "");
+    },
+    get authToken(): string {
+      return optional("HIGGSFIELD_MCP_TOKEN", "");
+    },
+    get tool(): string {
+      return optional("HIGGSFIELD_MCP_TOOL", "generate_image");
+    },
+    get promptArg(): string {
+      return optional("HIGGSFIELD_MCP_PROMPT_ARG", "prompt");
+    },
+    get modelArg(): string {
+      return optional("HIGGSFIELD_MCP_MODEL_ARG", "model");
+    },
+    get referencesArg(): string {
+      return optional("HIGGSFIELD_MCP_REFERENCES_ARG", "reference_images");
+    },
+    get attachedArg(): string {
+      return optional("HIGGSFIELD_MCP_ATTACHED_ARG", "attached_image");
+    },
+    get configured(): boolean {
+      return Boolean(process.env.HIGGSFIELD_MCP_URL);
+    },
+  },
   /** Per-user daily quotas on expensive actions (usage bills to the company). */
   quotas: {
     get ideation(): number {

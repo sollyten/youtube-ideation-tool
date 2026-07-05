@@ -52,3 +52,17 @@ thumbnail-lab/
 Connect Higgsfield to THIS module only. Do not attach the other project connectors or
 skills to the thumbnail context. Confirm in the module's settings that Higgsfield is the
 sole connected tool before generating.
+
+### Transport (implemented)
+The backend reaches Higgsfield through a small `HiggsfieldClient` interface with two
+production transports, selected by `HIGGSFIELD_ADAPTER`:
+- `http` — Higgsfield REST API using the company `HIGGSFIELD_API_KEY`.
+- `mcp` — a **Higgsfield MCP server** (`HIGGSFIELD_MCP_URL`, Streamable HTTP). The client
+  connects, lists tools, and calls the configured image-generation tool; tool and
+  argument names are env-configurable so they can be matched to the real server's schema
+  without code changes. To connect a real Higgsfield MCP server: set
+  `HIGGSFIELD_ADAPTER=mcp` and `HIGGSFIELD_MCP_URL` (+ token/tool/arg overrides as needed).
+
+Both transports live entirely inside `server/src/thumbnail/` and import nothing from the
+strategic side — an automated test (`test/thumbnailIsolation.test.ts`) fails the build if
+that ever changes.
