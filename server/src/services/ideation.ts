@@ -18,6 +18,7 @@ import { renderPromptFile, type PromptContext } from "../prompts/templateEngine.
 import { extractJsonArray } from "./json.js";
 import { assertQuota } from "./quota.js";
 import { getScriptRunner, type OutlierResult } from "./scripts.js";
+import type { SonarModel } from "./perplexity.js";
 import { formatMemoryTitles, scoreAndSaveIdeas, type ScoreAndSaveResult } from "./ideaScoring.js";
 
 export type { ScoredIdea } from "./ideaScoring.js";
@@ -50,7 +51,7 @@ function formatResources(profileData: Record<string, any>): string {
 export async function runIdeation(
   scoped: ScopedData,
   profile: ProfileRecord,
-  options: { ideaCount?: number } = {},
+  options: { ideaCount?: number; sonarModel?: SonarModel } = {},
 ): Promise<IdeationRunResult> {
   if (profile.readOnly) {
     throw new BadRequestError("Idea generation can only be run on your own profiles");
@@ -60,6 +61,10 @@ export async function runIdeation(
   const scripts = getScriptRunner();
   const data = profile.data as Record<string, any>;
   const ideaCount = Math.min(100, Math.max(50, options.ideaCount ?? 60));
+  // Idea generation uses the Sonar API; the run picks the model (or the config
+  // default), so sonar-pro (fast) and sonar-deep-research (deep) are both usable.
+  const sonarModel: SonarModel =
+    options.sonarModel ?? (config.perplexity.ideationModel as SonarModel);
   const fetchErrors: string[] = [];
 
   // 1. Refresh own channel + outliers (deterministic).
@@ -115,7 +120,7 @@ export async function runIdeation(
   const generationPrompt = generation.system
     ? `${generation.system}\n\n---\n\n${generation.user}`
     : generation.user;
-  const rawResponse = await scripts.perplexityResearch(generationPrompt);
+  const rawResponse = await scripts.perplexityResearch(generationPrompt, { api: "sonar", model: sonarModel });
   const rawIdeas = extractJsonArray(rawResponse, "Perplexity idea generation");
   if (rawIdeas.length === 0) {
     throw new UpstreamError("Perplexity returned zero usable ideas — not saving an empty run");
@@ -126,6 +131,7 @@ export async function runIdeation(
     usageAction: "ideation",
     metaBase: {
       source: "ideation",
+      sonar_model: sonarModel,
       idea_count_requested: ideaCount,
       baseline: myOutliers.baseline,
       my_outlier_count: myOutliers.outliers.length,

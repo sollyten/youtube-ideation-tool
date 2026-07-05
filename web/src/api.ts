@@ -102,10 +102,10 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
-  ideate: (profileId: string) =>
+  ideate: (profileId: string, sonarModel?: string) =>
     call<{ reportId: string; ideas: ScoredIdea[]; meta: Record<string, unknown> }>(
       `/api/profiles/${profileId}/ideate`,
-      { method: "POST", body: JSON.stringify({}) },
+      { method: "POST", body: JSON.stringify(sonarModel ? { sonar_model: sonarModel } : {}) },
     ),
 
   competitorAnalysis: (profileId: string) =>

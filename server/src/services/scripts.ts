@@ -14,6 +14,7 @@ import path from "node:path";
 import { config } from "../config/env.js";
 import { getCompanyKey } from "../credentials/companyCredentials.js";
 import { UpstreamError } from "../errors.js";
+import { sonarChat, agentRun, type SonarModel } from "./perplexity.js";
 
 const SCRIPT_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -135,13 +136,22 @@ export async function dedupeCandidates(
 }
 
 /**
- * Research call via scripts/perplexity_research.py (company key). Returns the
- * response text (citations appended by the script when present).
+ * Perplexity research routing. Idea Generation (prompt 01) uses the Sonar API
+ * with a selectable model; Deep Competitor Analysis (prompt 03) uses the Agent
+ * API. Returns the response text (citations appended when present). This is the
+ * seam both pipelines call (and that tests stub); the HTTP details live in
+ * services/perplexity.ts.
  */
-export async function perplexityResearch(prompt: string): Promise<string> {
-  return runPython("perplexity_research.py", [prompt], {
-    PERPLEXITY_API_KEY: getCompanyKey("perplexity"),
-  });
+export type PerplexityMode =
+  | { api: "sonar"; model: SonarModel }
+  | { api: "agent" };
+
+export async function perplexityResearch(
+  prompt: string,
+  mode: PerplexityMode = { api: "sonar", model: "sonar-pro" },
+): Promise<string> {
+  if (mode.api === "agent") return agentRun(prompt);
+  return sonarChat(prompt, mode.model);
 }
 
 export interface PerformanceRow {

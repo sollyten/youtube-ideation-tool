@@ -112,7 +112,8 @@ export async function runCompetitorAnalysis(
     competitor_outliers_with_urls: formatCompetitorOutliersWithUrls(competitorOutliers),
   } satisfies PromptContext);
   const prompt = rendered.system ? `${rendered.system}\n\n---\n\n${rendered.user}` : rendered.user;
-  const response = await scripts.perplexityResearch(prompt);
+  // Deep Competitor Analysis runs on the Agent API (multi-step web research).
+  const response = await scripts.perplexityResearch(prompt, { api: "agent" });
   const analysis = extractJsonObject<CompetitorAnalysis>(response, "Competitor deep analysis");
   if (!Array.isArray(analysis.outlier_breakdowns) || !Array.isArray(analysis.topic_bank)) {
     throw new UpstreamError("Competitor analysis returned an incomplete result");

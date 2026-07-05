@@ -117,7 +117,12 @@ import `ScopedData` profile methods, memory, or prompts outside
 - `getReasoningAdapter()` / `setReasoningAdapter()` — company Anthropic key path
   (`claude-opus-4-8`, adaptive thinking, streaming, optional vision images).
   Tests inject `StubReasoningAdapter` and `enqueue()` responses.
-- `getScriptRunner()` / `setScriptRunner()` — swap any Python script call.
+- `getScriptRunner()` / `setScriptRunner()` — swap any Python script call. Its
+  `perplexityResearch(prompt, mode)` routes to `services/perplexity.ts`: mode
+  `{api:"sonar", model}` (Idea Generation, prompt 01 — model selectable per run:
+  sonar-pro | sonar-deep-research) or `{api:"agent"}` (Deep Competitor Analysis,
+  prompt 03 — Perplexity Agent API). `setPerplexityFetch()` injects fetch for
+  tests. Endpoint/model/timeout are env-configurable (see `.env.example`).
 - `getHiggsfieldClient()` / `setHiggsfieldClient()` — Thumbnail Lab only.
   `HIGGSFIELD_ADAPTER` picks the transport: `http` (REST + `HIGGSFIELD_API_KEY`),
   `mcp` (a Higgsfield MCP server — `HIGGSFIELD_MCP_URL` + configurable tool/arg

@@ -8,6 +8,7 @@ export function IdeasTab({ profile }: { profile: Profile }) {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+  const [sonarModel, setSonarModel] = useState("sonar-deep-research");
 
   useEffect(() => {
     api
@@ -20,7 +21,7 @@ export function IdeasTab({ profile }: { profile: Profile }) {
     setRunning(true);
     setError("");
     try {
-      const result = await api.ideate(profile.id);
+      const result = await api.ideate(profile.id, sonarModel);
       navigate(`/reports/${result.reportId}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Ideation failed");
@@ -36,9 +37,21 @@ export function IdeasTab({ profile }: { profile: Profile }) {
           Channel + competitor outliers → researched ideas → scored top 15, never repeating.
         </p>
         {!profile.readOnly && (
-          <button className="btn btn-primary" onClick={generate} disabled={running}>
-            {running ? (<><span className="spinner" /> Generating…</>) : "Generate ideas"}
-          </button>
+          <div className="row" style={{ gap: 8 }}>
+            <select
+              className="btn"
+              value={sonarModel}
+              onChange={(e) => setSonarModel(e.target.value)}
+              title="Perplexity Sonar model for research"
+              disabled={running}
+            >
+              <option value="sonar-deep-research">Sonar Deep Research (thorough)</option>
+              <option value="sonar-pro">Sonar Pro (fast)</option>
+            </select>
+            <button className="btn btn-primary" onClick={generate} disabled={running}>
+              {running ? (<><span className="spinner" /> Generating…</>) : "Generate ideas"}
+            </button>
+          </div>
         )}
       </div>
       {running && (

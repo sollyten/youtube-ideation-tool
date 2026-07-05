@@ -46,6 +46,29 @@ export const config = {
   get reasoningAdapter(): string {
     return optional("REASONING_ADAPTER", "anthropic");
   },
+  /**
+   * Perplexity research: Sonar API for idea generation (prompt 01, model
+   * selectable per run) and the Agent API for competitor analysis (prompt 03).
+   */
+  perplexity: {
+    get baseUrl(): string {
+      return optional("PERPLEXITY_BASE_URL", "https://api.perplexity.ai");
+    },
+    /** Default Sonar model for ideation when the run doesn't specify one. */
+    get ideationModel(): string {
+      return optional("PERPLEXITY_IDEATION_MODEL", "sonar-deep-research");
+    },
+    /** Agent API endpoint path + model, config-driven to match the live API. */
+    get agentPath(): string {
+      return optional("PERPLEXITY_AGENT_PATH", "/v1/agent");
+    },
+    get agentModel(): string {
+      return optional("PERPLEXITY_AGENT_MODEL", "sonar-pro");
+    },
+    get timeoutMs(): number {
+      return intOption("PERPLEXITY_TIMEOUT_MS", 8 * 60 * 1000);
+    },
+  },
   /** Public base URL the browser reaches this app on (for OAuth redirect fallback). */
   get appBaseUrl(): string {
     return optional("APP_BASE_URL", `http://localhost:${this.port}`);
