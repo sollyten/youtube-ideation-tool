@@ -1,3 +1,5 @@
+import { loadEnv } from "./config/loadEnv.js";
+loadEnv();
 import { createApp } from "./app.js";
 import { config } from "./config/env.js";
 import { migrate } from "./db/migrate.js";

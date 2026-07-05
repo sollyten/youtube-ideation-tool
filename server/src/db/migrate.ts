@@ -44,6 +44,9 @@ export async function migrate(): Promise<string[]> {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  // Standalone `npm run migrate` needs the .env loaded first.
+  const { loadEnv } = await import("../config/loadEnv.js");
+  loadEnv();
   migrate()
     .then((ran) => {
       console.log(ran.length ? `Applied: ${ran.join(", ")}` : "Nothing to migrate");
