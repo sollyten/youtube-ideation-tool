@@ -139,3 +139,16 @@ See `.env.example`. Required to boot: `DATABASE_URL`, `AUTH_SECRET`,
 `TOKEN_ENCRYPTION_KEY`. Company keys (`YOUTUBE_API_KEY`, `PERPLEXITY_API_KEY`,
 `ANTHROPIC_API_KEY`, `HIGGSFIELD_API_KEY`) are needed only for the features
 that use them; missing keys fail loudly with a per-service message.
+
+### Egress behind a TLS-terminating proxy
+
+`npm run dev` and `npm start` launch the server through
+`server/scripts/with-egress.mjs`, which adds `--use-env-proxy` +
+`--use-system-ca` to `NODE_OPTIONS`. Node's built-in `fetch` otherwise ignores
+`HTTPS_PROXY` and won't trust a proxy's re-terminated TLS — so the Perplexity /
+Anthropic calls fail with a 403/cert error in sandboxed or corporate-proxy
+environments. Both flags are no-ops when no proxy is present, and any Node that
+doesn't recognize them just skips them, so nothing to configure — it works in
+plain and proxied environments alike. If you launch the server some other way
+(not via these scripts), pass those two flags yourself or set
+`NODE_USE_ENV_PROXY=1` at process start.
