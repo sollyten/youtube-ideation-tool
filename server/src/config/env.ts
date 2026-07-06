@@ -58,12 +58,17 @@ export const config = {
     get ideationModel(): string {
       return optional("PERPLEXITY_IDEATION_MODEL", "sonar-deep-research");
     },
-    /** Agent API endpoint path + model, config-driven to match the live API. */
+    /**
+     * Agent API endpoint path + model, config-driven to match the live API.
+     * The Agent (Responses) API uses provider-prefixed model ids, not bare
+     * Sonar names — see GET /v1/models (e.g. "perplexity/sonar-pro",
+     * "anthropic/claude-...").
+     */
     get agentPath(): string {
       return optional("PERPLEXITY_AGENT_PATH", "/v1/agent");
     },
     get agentModel(): string {
-      return optional("PERPLEXITY_AGENT_MODEL", "sonar-pro");
+      return optional("PERPLEXITY_AGENT_MODEL", "perplexity/sonar");
     },
     get timeoutMs(): number {
       return intOption("PERPLEXITY_TIMEOUT_MS", 8 * 60 * 1000);

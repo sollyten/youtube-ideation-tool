@@ -86,18 +86,18 @@ export async function sonarChat(prompt: string, model: SonarModel): Promise<stri
 
 /**
  * Agent API research call (prompt 03). The Agent API is an agentic runtime with
- * built-in web_search + fetch_url tools. Request/response field names are read
- * defensively and the request shape is config-driven so it can be matched to
- * the live API without code changes.
+ * built-in web_search + fetch_url tools, exposed as the OpenAI Responses API:
+ * the request carries a single `input` string (NOT chat `messages`) and a
+ * provider-prefixed model id (e.g. "perplexity/sonar", "anthropic/claude-...").
+ * The response is a Responses object whose `output[]` array holds a `message`
+ * item with `content[].text`, plus separate items carrying search results. Both
+ * the answer text and its citations are read defensively from that shape.
  */
 export async function agentRun(prompt: string): Promise<string> {
   const p = config.perplexity;
   const body: Record<string, unknown> = {
     model: p.agentModel,
-    messages: [
-      { role: "system", content: RESEARCH_SYSTEM },
-      { role: "user", content: prompt },
-    ],
+    input: `${RESEARCH_SYSTEM}\n\n${prompt}`,
     tools: [{ type: "web_search" }, { type: "fetch_url" }],
   };
   let res: Response;
@@ -117,7 +117,33 @@ export async function agentRun(prompt: string): Promise<string> {
   }
   const text = extractAgentText(json);
   if (!text.trim()) throw new UpstreamError("Perplexity Agent returned no content");
-  return withCitations(text, json?.citations ?? json?.search_results);
+  return withCitations(text, extractAgentCitations(json));
+}
+
+/**
+ * Collect citation URLs from an Agent (Responses API) payload. The Agent API
+ * carries no top-level `citations`/`search_results`; instead sources appear as
+ * `annotations` on the output_text block and as `results`/`queries` items in the
+ * `output[]` array. Falls back to the Sonar-style top-level fields if present.
+ */
+export function extractAgentCitations(json: any): string[] {
+  const urls: string[] = [];
+  const push = (u: unknown) => {
+    if (typeof u === "string" && u.trim()) urls.push(u);
+  };
+  if (Array.isArray(json?.output)) {
+    for (const item of json.output) {
+      for (const c of Array.isArray(item?.content) ? item.content : []) {
+        for (const a of Array.isArray(c?.annotations) ? c.annotations : []) push(a?.url);
+      }
+      for (const r of Array.isArray(item?.results) ? item.results : []) push(r?.url);
+    }
+  }
+  for (const c of Array.isArray(json?.citations) ? json.citations : []) {
+    push(typeof c === "string" ? c : c?.url);
+  }
+  for (const r of Array.isArray(json?.search_results) ? json.search_results : []) push(r?.url);
+  return [...new Set(urls)];
 }
 
 /**
@@ -133,9 +159,13 @@ export function extractAgentText(json: any): string {
     const t = choice.map((b: any) => (typeof b === "string" ? b : b?.text)).filter(Boolean).join("\n");
     if (t) return t;
   }
-  // Responses-style output blocks
+  // Responses-style output blocks. Prefer the assistant `message` item(s); their
+  // content carries the final answer as `output_text`. Reasoning/tool items in
+  // the same array are ignored so their scratch text can't leak into the answer.
   if (Array.isArray(json?.output)) {
-    const t = json.output
+    const messages = json.output.filter((o: any) => o?.type === "message");
+    const source = messages.length ? messages : json.output;
+    const t = source
       .flatMap((o: any) => (Array.isArray(o?.content) ? o.content : [o]))
       .map((c: any) => (typeof c === "string" ? c : c?.text))
       .filter(Boolean)
