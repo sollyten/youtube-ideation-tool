@@ -7,6 +7,9 @@
  *
  * Sign in as demo@telos.so / password123.
  */
+import { loadEnv } from "../config/loadEnv.js";
+loadEnv(); // must run before ../db/pool.js reads config.databaseUrl, or a
+// configured .env DATABASE_URL is silently ignored in favor of the default.
 import { getPool, closePool } from "../db/pool.js";
 import { hashPassword } from "../auth/passwords.js";
 import { ScopedData } from "../data/scoped.js";
