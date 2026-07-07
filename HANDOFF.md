@@ -103,6 +103,16 @@ import `ScopedData` profile methods, memory, or prompts outside
   client, deterministic prompt composition (no reasoning model / profile /
   memory). A static test (`test/thumbnailIsolation.test.ts`) fails the build if
   the module ever imports the strategic side.
+- **Idea feedback loop** (continuous learning): after an idea run, the report
+  page offers an optional right-hand glass sheet (`FeedbackPanel`, styled
+  opposite to the page theme) where the director picks the best ideas and adds
+  comments. Stored per (user, report) in `idea_feedback` — picks AND passes —
+  via `scoped.saveIdeaFeedback`; `listRecentIdeaFeedback` feeds the last 10
+  verdicts into prompts 01 (generation) and 02 (scoring) as
+  `{{director_feedback}}` (`formatDirectorFeedback` in `ideaScoring.ts`), so
+  both ideation and recombination runs track the director's taste. Routes:
+  GET/POST `/api/reports/:id/feedback` (owner-only writes; `canRespond` gates
+  the UI on company-visible reports).
 - **History** tab (all reports, filter by channel + type) and **admin** usage +
   credential-status views. Per-user daily quotas on every expensive action.
 - Web UI: login, channels, add-channel wizard, profile page with a tab per

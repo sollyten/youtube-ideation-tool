@@ -11,7 +11,7 @@
  */
 import path from "node:path";
 import { config } from "../config/env.js";
-import type { ProfileRecord, ScopedData } from "../data/scoped.js";
+import type { IdeaFeedbackRecord, ProfileRecord, ScopedData } from "../data/scoped.js";
 import { UpstreamError } from "../errors.js";
 import { renderPromptFile, type PromptContext } from "../prompts/templateEngine.js";
 import { getReasoningAdapter } from "../reasoning/adapter.js";
@@ -44,6 +44,28 @@ export function formatMemoryTitles(memory: Array<Record<string, unknown>>): stri
 }
 
 /**
+ * Render the director's post-run feedback (their picks, passes, and comments
+ * from previous idea runs) as prompt text. This is the per-profile taste
+ * signal: prompts 01 and 02 receive it so future generation and scoring drift
+ * toward what this channel's director actually selects.
+ */
+export function formatDirectorFeedback(rows: IdeaFeedbackRecord[]): string {
+  if (rows.length === 0) return "(no director feedback recorded yet)";
+  return rows
+    .map((f) => {
+      const date = f.createdAt.slice(0, 10);
+      const picked = f.selected.length
+        ? f.selected.map((s) => `"${s.title}"`).join("; ")
+        : "(none)";
+      const parts = [`Run ${date} — PICKED: ${picked}`];
+      if (f.passed.length) parts.push(`PASSED ON: ${f.passed.map((t) => `"${t}"`).join("; ")}`);
+      if (f.comments.trim()) parts.push(`Director's comment: ${f.comments.trim()}`);
+      return parts.join("\n  ");
+    })
+    .join("\n");
+}
+
+/**
  * Score raw candidate ideas against the profile (prompt 02), de-dup against the
  * channel's memory on both sides of scoring, append the selection to memory,
  * and persist an "ideas" report.
@@ -65,16 +87,19 @@ export async function scoreAndSaveIdeas(
   const scripts = getScriptRunner();
   const data = profile.data as Record<string, any>;
   const memory = await scoped.listIdeaMemory(profile.id);
+  const feedback = await scoped.listRecentIdeaFeedback(profile.id);
 
   // 1. Fuzzy no-repeat backstop before scoring.
   const deduped = await scripts.dedupeCandidates(memory, rawIdeas);
 
-  // 2. Scoring & selection (prompt 02) through the reasoning adapter.
+  // 2. Scoring & selection (prompt 02) through the reasoning adapter. The
+  //    director's past picks/passes ride along so selection tracks their taste.
   const promptContext: PromptContext = {
     ...data,
     profile_json: data,
     candidate_ideas_json: JSON.stringify(deduped.unique, null, 2),
     previously_generated_ideas: formatMemoryTitles(memory),
+    director_feedback: formatDirectorFeedback(feedback),
     format_style: data.format_style,
     idea_count: rawIdeas.length,
   };

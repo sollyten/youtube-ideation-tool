@@ -74,6 +74,7 @@ describe("real prompt files", () => {
       competitor_outliers: "C | B | 5x",
       recent_topics: ["t1"],
       previously_generated_ideas: "(none)",
+      director_feedback: "(no director feedback recorded yet)",
       idea_count: 60,
     };
     const rendered = renderTemplate(t, context);
@@ -87,6 +88,7 @@ describe("real prompt files", () => {
       profile_json: { slug: "x" },
       candidate_ideas_json: "[]",
       previously_generated_ideas: "(none)",
+      director_feedback: "(no director feedback recorded yet)",
       format_style: "fmt",
       idea_count: 60,
     });

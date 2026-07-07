@@ -31,6 +31,11 @@ Durable learnings from THIS channel's real published performance (weight heavily
 are evidence-backed, not guesses):
 {{performance_learnings}}
 
+The director's own verdicts on past idea runs — which generated ideas they PICKED as
+best for this channel, which they PASSED on, and their comments. Treat picks as the
+strongest signal of what to generate more of, and passes as patterns to avoid:
+{{director_feedback}}
+
 ## Proven outliers (already computed - these OVER-performed their channel baseline)
 My channel's outliers (title | multiplier over baseline):
 {{my_outliers}}

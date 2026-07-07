@@ -60,6 +60,16 @@ export interface ReportSummary {
   createdAt: string;
 }
 
+export interface IdeaFeedback {
+  id: string;
+  profileId: string;
+  reportId: string;
+  selected: Array<{ title: string; premise: string }>;
+  passed: string[];
+  comments: string;
+  createdAt: string;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   constructor(status: number, message: string) {
@@ -187,4 +197,12 @@ export const api = {
   },
   getReport: (id: string) =>
     call<{ report: ReportSummary & { payload: Record<string, unknown> } }>(`/api/reports/${id}`),
+
+  getIdeaFeedback: (reportId: string) =>
+    call<{ feedback: IdeaFeedback | null; canRespond: boolean }>(`/api/reports/${reportId}/feedback`),
+  saveIdeaFeedback: (reportId: string, selectedTitles: string[], comments: string) =>
+    call<{ feedback: IdeaFeedback }>(`/api/reports/${reportId}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ selected_titles: selectedTitles, comments }),
+    }),
 };

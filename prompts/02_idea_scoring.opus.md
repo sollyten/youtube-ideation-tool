@@ -21,6 +21,12 @@ before scoring. You must not invent facts about the channel; use only the profil
 ## Ideas already produced for this channel in the past (never re-select these)
 {{previously_generated_ideas}}
 
+## The director's verdicts on past runs (their picks, passes, and comments)
+Use this as a tie-breaker and calibration signal: candidates resembling past PICKS
+deserve a nudge up; candidates resembling repeated PASSES deserve a nudge down. The
+comments are direct instructions about this channel's taste.
+{{director_feedback}}
+
 ## Your task
 Work through this in order and show your reasoning for the shortlist:
 

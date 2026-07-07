@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, type ScoredIdea } from "../api";
+import { api, type IdeaFeedback, type ScoredIdea } from "../api";
 import { IdeaCards } from "../components/IdeaCards";
+import { FeedbackPanel } from "../components/FeedbackPanel";
 
 /** Read-only view of any saved report (ideas | competitor | retention | performance). */
 export function ReportPage() {
@@ -13,11 +14,29 @@ export function ReportPage() {
     payload: any;
   } | null>(null);
   const [error, setError] = useState("");
+  const [feedback, setFeedback] = useState<IdeaFeedback | null>(null);
+  const [askFeedback, setAskFeedback] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    setFeedback(null);
+    setAskFeedback(false);
     api.getReport(id).then((r) => setReport(r.report)).catch((e) => setError(e.message));
   }, [id]);
+
+  // For idea runs, offer the optional post-run query unless this director
+  // already answered it (or explicitly skipped it) for this report.
+  useEffect(() => {
+    if (!id || !report || report.type !== "ideas") return;
+    api
+      .getIdeaFeedback(id)
+      .then(({ feedback: fb, canRespond }) => {
+        setFeedback(fb);
+        const skipped = localStorage.getItem(`feedback-skipped-${id}`) === "1";
+        setAskFeedback(canRespond && !fb && !skipped);
+      })
+      .catch(() => {});
+  }, [id, report]);
 
   if (error) return <p className="error">{error}</p>;
   if (!report) return <p className="muted"><span className="spinner" /> Loading…</p>;
@@ -43,7 +62,26 @@ export function ReportPage() {
             {String(p.meta?.raw_candidate_count ?? "?")} researched → {(p.ideas ?? []).length} selected
             {p.meta?.source === "recombination" && " · from competitor recombination"}
           </p>
+          {feedback && (
+            <p className="muted">
+              Your picks from this run:{" "}
+              {feedback.selected.length
+                ? feedback.selected.map((s) => `“${s.title}”`).join(", ")
+                : "(none)"}
+              {feedback.comments && ` — “${feedback.comments}”`}
+            </p>
+          )}
           <IdeaCards ideas={(p.ideas ?? []) as ScoredIdea[]} />
+          {askFeedback && (
+            <FeedbackPanel
+              reportId={id!}
+              ideas={(p.ideas ?? []) as ScoredIdea[]}
+              onDone={() => {
+                setAskFeedback(false);
+                api.getIdeaFeedback(id!).then((r) => setFeedback(r.feedback)).catch(() => {});
+              }}
+            />
+          )}
           {p.drop_note && (
             <>
               <h2>Scorer's notes</h2>

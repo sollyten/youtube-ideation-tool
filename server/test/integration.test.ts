@@ -94,7 +94,7 @@ const SCORED_IDEAS = JSON.stringify([
 
 async function truncateAll() {
   await getPool().query(
-    "TRUNCATE users, sessions, profiles, idea_memory, reports, channel_tokens, usage_events CASCADE",
+    "TRUNCATE users, sessions, profiles, idea_memory, reports, idea_feedback, channel_tokens, usage_events CASCADE",
   );
 }
 
@@ -427,5 +427,157 @@ describe("channel tokens", () => {
     });
     await expect(bobScoped.getChannelToken(profileId)).rejects.toThrow();
     void bob;
+  });
+});
+
+describe("idea feedback learning loop", () => {
+  const TWO_SCORED = JSON.stringify([
+    {
+      title: "The Escape Tunnel Nobody Found",
+      premise: "p1",
+      alignment_score: 88,
+      subscores: { focus: 33, format: 18, audience: 17, originality: 12, outlier: 8 },
+      why_it_fits: "fits",
+      why_now: "anniversary",
+      recommended_format_angle: "present-tense narrative",
+    },
+    {
+      title: "Manhunt Across the Alps",
+      premise: "p2",
+      alignment_score: 74,
+      subscores: { focus: 28, format: 16, audience: 14, originality: 10, outlier: 6 },
+      why_it_fits: "fits",
+      why_now: "new archive release",
+      recommended_format_angle: "chase structure",
+    },
+  ]);
+
+  async function runIdeation(agent: Agent, profileId: string): Promise<string> {
+    stubReasoning.enqueue(TWO_SCORED);
+    const run = await request(app)
+      .post(`/api/profiles/${profileId}/ideate`)
+      .set("Cookie", agent.cookie)
+      .send({});
+    expect(run.status).toBe(200);
+    return run.body.reportId;
+  }
+
+  it("stores picks + passes + comments and reports canRespond correctly", async () => {
+    const alice = await registerUser("alice@telos.so", "Alice");
+    const profileId = await createProfile(alice);
+    const reportId = await runIdeation(alice, profileId);
+
+    const before = await request(app)
+      .get(`/api/reports/${reportId}/feedback`)
+      .set("Cookie", alice.cookie);
+    expect(before.status).toBe(200);
+    expect(before.body.feedback).toBeNull();
+    expect(before.body.canRespond).toBe(true);
+
+    const save = await request(app)
+      .post(`/api/reports/${reportId}/feedback`)
+      .set("Cookie", alice.cookie)
+      .send({
+        selected_titles: ["The Escape Tunnel Nobody Found"],
+        comments: "More tunnel mysteries like this",
+      });
+    expect(save.status).toBe(200);
+    expect(save.body.feedback.selected).toEqual([
+      { title: "The Escape Tunnel Nobody Found", premise: "p1" },
+    ]);
+    // Everything shown but not picked is the negative signal.
+    expect(save.body.feedback.passed).toEqual(["Manhunt Across the Alps"]);
+
+    const after = await request(app)
+      .get(`/api/reports/${reportId}/feedback`)
+      .set("Cookie", alice.cookie);
+    expect(after.body.feedback.comments).toBe("More tunnel mysteries like this");
+  });
+
+  it("rejects titles that are not in the report", async () => {
+    const alice = await registerUser("alice@telos.so", "Alice");
+    const profileId = await createProfile(alice);
+    const reportId = await runIdeation(alice, profileId);
+
+    const bad = await request(app)
+      .post(`/api/reports/${reportId}/feedback`)
+      .set("Cookie", alice.cookie)
+      .send({ selected_titles: ["A Title I Made Up"] });
+    expect(bad.status).toBe(409);
+  });
+
+  it("blocks another user from training someone else's profile", async () => {
+    const alice = await registerUser("alice@telos.so", "Alice");
+    const bob = await registerUser("bob@telos.so", "Bob");
+    const profileId = await createProfile(alice);
+    const reportId = await runIdeation(alice, profileId);
+
+    const cross = await request(app)
+      .post(`/api/reports/${reportId}/feedback`)
+      .set("Cookie", bob.cookie)
+      .send({ selected_titles: ["The Escape Tunnel Nobody Found"] });
+    expect(cross.status).toBe(403);
+  });
+
+  it("feeds the saved feedback into the NEXT run's generation and scoring prompts", async () => {
+    const alice = await registerUser("alice@telos.so", "Alice");
+    const profileId = await createProfile(alice);
+    const reportId = await runIdeation(alice, profileId);
+
+    await request(app)
+      .post(`/api/reports/${reportId}/feedback`)
+      .set("Cookie", alice.cookie)
+      .send({
+        selected_titles: ["The Escape Tunnel Nobody Found"],
+        comments: "Lean into unsolved-mystery angles",
+      });
+
+    // Second run: capture what prompt 01 (generation) actually receives.
+    let generationPrompt = "";
+    stubScripts();
+    const base = (await import("../src/services/scripts.js")).getScriptRunner();
+    (await import("../src/services/scripts.js")).setScriptRunner({
+      ...base,
+      perplexityResearch: async (prompt: string) => {
+        generationPrompt = prompt;
+        return JSON.stringify([
+          {
+            title: "The Vanished Border Crossing",
+            premise: "p3",
+            why_now: "declassified files",
+            coverage_check: "low",
+            outlier_pattern_used: "mystery hook",
+          },
+        ]);
+      },
+    });
+    stubReasoning.enqueue(
+      JSON.stringify([
+        {
+          title: "The Vanished Border Crossing",
+          premise: "p3",
+          alignment_score: 90,
+          subscores: { focus: 34, format: 18, audience: 18, originality: 12, outlier: 8 },
+          why_it_fits: "fits",
+          why_now: "declassified files",
+          recommended_format_angle: "present-tense narrative",
+        },
+      ]),
+    );
+    const second = await request(app)
+      .post(`/api/profiles/${profileId}/ideate`)
+      .set("Cookie", alice.cookie)
+      .send({});
+    expect(second.status).toBe(200);
+
+    // Prompt 01 (generation) received the director's verdicts.
+    expect(generationPrompt).toContain('PICKED: "The Escape Tunnel Nobody Found"');
+    expect(generationPrompt).toContain('PASSED ON: "Manhunt Across the Alps"');
+    expect(generationPrompt).toContain("Lean into unsolved-mystery angles");
+
+    // Prompt 02 (scoring) received them too.
+    const scoringRequest = stubReasoning.requests.at(-1)!;
+    expect(scoringRequest.user).toContain('PICKED: "The Escape Tunnel Nobody Found"');
+    expect(scoringRequest.user).toContain("Lean into unsolved-mystery angles");
   });
 });

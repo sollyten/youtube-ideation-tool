@@ -1,7 +1,7 @@
 .env
-connections/
-data/
-storage/
+/connections/
+/data/
+/storage/
 thumbnail-lab/references/
 thumbnail-lab/styles/
 *.token.json

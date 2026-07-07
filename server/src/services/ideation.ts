@@ -19,7 +19,12 @@ import { extractJsonArray } from "./json.js";
 import { assertQuota } from "./quota.js";
 import { getScriptRunner, type OutlierResult } from "./scripts.js";
 import type { SonarModel } from "./perplexity.js";
-import { formatMemoryTitles, scoreAndSaveIdeas, type ScoreAndSaveResult } from "./ideaScoring.js";
+import {
+  formatDirectorFeedback,
+  formatMemoryTitles,
+  scoreAndSaveIdeas,
+  type ScoreAndSaveResult,
+} from "./ideaScoring.js";
 
 export type { ScoredIdea } from "./ideaScoring.js";
 export type IdeationRunResult = ScoreAndSaveResult;
@@ -102,10 +107,12 @@ export async function runIdeation(
   // 3. Idea generation via Perplexity (prompt 01). Both prompts receive the
   //    full memory so nothing is proposed twice.
   const memory = await scoped.listIdeaMemory(profile.id);
+  const feedback = await scoped.listRecentIdeaFeedback(profile.id);
   const promptContext: PromptContext = {
     ...data,
     channel_name: data.channel_name,
     idea_count: ideaCount,
+    director_feedback: formatDirectorFeedback(feedback),
     my_outliers: formatOutliers(myOutliers.outliers),
     competitor_outliers: formatCompetitorOutliers(competitorOutliers),
     resources_concatenated: formatResources(data),
